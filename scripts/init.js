@@ -103,16 +103,81 @@ $(document).ready(function() {
         $('#status').html(animating.toString());
     }
 
-    //mouse control
-    var mouseX = 0, 
-        mouseY = 0;
-    var windowHalfX = window.innerWidth / 2;
-    var windowHalfY = window.innerHeight / 2;
-    $(document).bind('mousemove', function(e) {
-        mouseX = ( e.clientX - windowHalfX );
-        mouseY = ( e.clientY - windowHalfY );
-    });
 
+    // ------------------------ MOUSE / TOUCH EVENTS ------------------------
+
+    var ROTATION_VECTOR_INIT = [0, 0, 0]
+    var ROTATION_ANGLE_INIT = 0
+    var ROTATION_VECTOR = [0, 0, 0]
+    var ROTATION_ANGLE = 0
+
+    var IS_DRAGGING = false
+    var START_X = 0
+    var START_Y = 0
+
+    var onmousedown = function(e) {
+        e = e || window.event
+        if(e.originalEvent && e.originalEvent.touches) e = e.originalEvent.touches[0]
+        START_X = e.clientX
+        START_Y = e.clientY
+        IS_DRAGGING = true
+    }
+
+    var onmouseup = function(e) {
+        IS_DRAGGING = false
+        var rotation = Spin.get_rotation()
+        ROTATION_VECTOR_INIT = rotation.vector
+        ROTATION_ANGLE_INIT = rotation.angle
+    }
+
+    var onmousemove = function(e) {
+        if(!IS_DRAGGING || ZOOMING) return
+
+        e = e || window.event
+        if(e.originalEvent && e.originalEvent.touches) e = e.originalEvent.touches[0]
+
+        var vector = [START_Y - e.clientY, e.clientX - START_X, 0]
+        var length = Math.sqrt(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2])
+
+        ROTATION_VECTOR = [vector[0] / length, vector[1] / length, vector[2] / length]
+        ROTATION_ANGLE = length / 250
+            
+        rotate_scene()
+        return false
+    }
+
+    $(document).bind('mousedown', onmousedown)
+    $(document).bind('touchstart', onmousedown)
+    $(document).bind('mouseup', onmouseup)
+    $(document).bind('touchend', onmouseup)
+    $(document).bind('mousemove', onmousemove)
+    $(document).bind('touchmove', onmousemove)
+
+    function rotate_scene() {
+        scene.rotation.x = 
+    }
+
+    var ZOOMING = false
+    var ZOOM = 0
+    var ZOOM_INIT = 0
+
+    $(document).bind('gesturestart', function(e) {
+        ZOOMING = true
+    })
+
+    $(document).bind('gesturechange', function(e) {
+        var scale = e.originalEvent.scale
+        var rotation = e.originalEvent.rotation
+        ZOOM = ZOOM_INIT + 400 * (scale - 1)
+        MOLECULE_CONTAINER_ELEM.css('webkitTransform', 'translateZ('+ZOOM+'px)')
+        e.preventDefault()
+    })
+
+    $(document).bind('gestureend', function(e) {
+        ZOOM_INIT = ZOOM
+        ZOOMING = false
+    })
+  
     function loopAnimationFrame() {
         // note: three.js includes requestAnimationFrame shim
         if (animating) {
@@ -126,11 +191,6 @@ $(document).ready(function() {
         $.each(objects, function(index, value) {
             objects[index].frameCallback.call(objects[index], index)
         });
-
-        camera.position.x += ( mouseX - camera.position.x ) * .05;
-        camera.position.y += ( - mouseY - camera.position.y ) * .05;
-
-        camera.lookAt( scene.position );
     }
     function render() {
         renderer.render( scene, camera );
